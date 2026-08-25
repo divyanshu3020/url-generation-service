@@ -12,19 +12,29 @@ interface Shortenbody {
 }
 
 const shortenSchema: FastifySchema = {
-  querystring: {
-    type: "object",
-    required: ["url"],
-    properties: {
-      url: { type: "string", format: "uri" },
-    },
-  },
+  // querystring: {
+  //   type: "object",
+  //   required: ["url"],
+  //   properties: {
+  //     url: {
+  //       type: "string",
+  //       format: "uri",
+  //       pattern: "^https?://",
+  //       maxLength: 2048,
+  //     },
+  //   },
+  // },
 
   body: {
     type: "object",
     required: ["url"],
     properties: {
-      url: { type: "string", format: "uri" },
+      url: {
+        type: "string",
+        format: "uri",
+        pattern: "^https?://",
+        maxLength: 2048,
+      },
     },
   },
 
@@ -41,7 +51,7 @@ const shortenSchema: FastifySchema = {
             longUrl: { type: "string" },
             shortUrl: { type: "string" },
           },
-        }, 
+        },
       },
     },
     400: {
@@ -63,49 +73,49 @@ const shortenSchema: FastifySchema = {
 
 const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   // 1. Shorten URL Endpoint (if sending long url in url itself as query)
-  fastify.get<{ Querystring: ShortenQuery }>(
-    "/shorten",
-    { schema: shortenSchema },
-    async (request, reply) => {
-      const longUrl = request.query.url;
+  // fastify.get<{ Querystring: ShortenQuery }>(
+  //   "/shorten",
+  //   { schema: shortenSchema },
+  //   async (request, reply) => {
+  //     const longUrl = request.query.url;
 
-      if (!longUrl) {
-        return reply
-          .status(400)
-          .send({ success: false, message: "Missing 'url' parameter" });
-      }
+  //     if (!longUrl) {
+  //       return reply
+  //         .status(400)
+  //         .send({ success: false, message: "Missing 'url' parameter" });
+  //     }
 
-      const shortcode = generateShortCode();
+  //     const shortcode = generateShortCode();
 
-      // Persist mapping to DB & Redis Cache
-      try {
-        await saveUrlMapping({
-          shortCode: shortcode,
-          longUrl: longUrl,
-        });
-      } catch (err: any) {
-        logger.error(
-          `❌ [Route] Error saving URL mapping: ${err.message || err}`,
-        );
-        return reply
-          .status(500)
-          .send({ success: false, message: "Failed to persist short URL" });
-      }
+  //     // Persist mapping to DB & Redis Cache
+  //     try {
+  //       await saveUrlMapping({
+  //         shortCode: shortcode,
+  //         longUrl: longUrl,
+  //       });
+  //     } catch (err: any) {
+  //       logger.error(
+  //         `❌ [Route] Error saving URL mapping: ${err.message || err}`,
+  //       );
+  //       return reply
+  //         .status(500)
+  //         .send({ success: false, message: "Failed to persist short URL" });
+  //     }
 
-      return {
-        success: true,
-        message: "URL shortened successfully",
-        data: {
-          shortcode,
-          longUrl,
-          shortUrl: `http://localhost:3000/api/v1/${shortcode}`,
-        },
-      };
-    },
-  );
+  //     return {
+  //       success: true,
+  //       message: "URL shortened successfully",
+  //       data: {
+  //         shortcode,
+  //         longUrl,
+  //         shortUrl: `http://localhost:3000/api/v1/${shortcode}`,
+  //       },
+  //     };
+  //   },
+  // );
 
   // Shortend URL Endpoint (if sending through any frontend in body)
-  fastify.post<{Body:Shortenbody }>(
+  fastify.post<{ Body: Shortenbody }>(
     "/shorten",
     { schema: shortenSchema },
     async (request, reply) => {
@@ -140,7 +150,7 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         data: {
           shortcode,
           longUrl,
-          shortUrl: `http://localhost:3000/api/v1/${shortcode}`,
+          shortUrl: `http://localhost:3002/api/v1/${shortcode}`,
         },
       };
     },

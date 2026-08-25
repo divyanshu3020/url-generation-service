@@ -6,13 +6,10 @@ import { redisClient } from "./api/v1/lib/redis";
 import { logger } from "./api/v1/lib/logger";
 
 const app = Fastify();
-const port = 3000;
+const port = 3001;
 
 // Allowed Domains
-const allowedOrigins = [
-  "https://example.com",
-  "http://localhost:3000",
-];
+const allowedOrigins = ["https://example.com", "http://localhost:3000"];
 
 // Register CORS
 app.register(cors, {
@@ -36,7 +33,7 @@ app.register(cors, {
   exposedHeaders: ["X-Total-Count", "Content-Range"],
 
   // Required if your client sends cookies, authorization headers, or TLS client certificates
-  credentials: true,
+  credentials: false,
 
   // Cache preflight OPTIONS responses in the browser (in seconds)
   maxAge: 86400, // 24 hours
@@ -77,11 +74,6 @@ app.get("/health", async (request, reply) => {
 
   reply.status(isHealthy ? 200 : 500).send({
     status: isHealthy ? "healthy" : "unhealthy",
-    environment: process.env.NODE_ENV,
-    services: {
-      scylla: scyllaStatus,
-      redis: redisStatus,
-    },
   });
 });
 
@@ -91,7 +83,7 @@ const start = async () => {
     // Initialize ScyllaDB (runs keyspace & table setup)
     await initScyllaDB();
 
-    const address = await app.listen({ port });
+    const address = await app.listen({ port, host: "0.0.0.0" });
     logger.info(`Url shortner service is up and running on ${address}`);
   } catch (err) {
     logger.error(`Failed to start server: ${err}`);

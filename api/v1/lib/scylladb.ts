@@ -4,9 +4,31 @@ import { logger } from "./logger";
 // ==========================================
 // 1. ScyllaDB Driver Setup (CQL Protocol)
 // ==========================================
+const isProduction = process.env.NODE_ENV === "production";
+const scyllaHost = process.env.SCYLLA_HOST || "localhost";
+const scyllaUser = process.env.SCYLLA_USER;
+const scyllaPassword = process.env.SCYLLA_PASSWORD;
+
+if (
+  isProduction &&
+  (!process.env.SCYLLA_HOST || !scyllaUser || !scyllaPassword)
+) {
+  throw new Error(
+    "SCYLLA_HOST, SCYLLA_USER, and SCYLLA_PASSWORD are required in production",
+  );
+}
+
 export const scyllaClient = new cassandra.Client({
-  contactPoints: [process.env.SCYLLA_HOST || "localhost"],
+  contactPoints: [scyllaHost],
   localDataCenter: "datacenter1",
+  authProvider:
+    scyllaUser && scyllaPassword
+      ? new cassandra.auth.PlainTextAuthProvider(scyllaUser, scyllaPassword)
+      : undefined,
+  sslOptions:
+    process.env.SCYLLA_TLS === "true"
+      ? { rejectUnauthorized: true }
+      : undefined,
 });
 
 export async function initScyllaDB() {

@@ -9,6 +9,8 @@ RUN bun install --production --frozen-lockfile
 # 3. Copy source code
 COPY . .
 
+USER bun
+
 # 4. Document container port
 EXPOSE 3000
 
