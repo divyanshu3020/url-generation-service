@@ -39,6 +39,13 @@ const shortenSchema: FastifySchema = {
   },
 
   response: {
+    429: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        message: { type: "string" },
+      },
+    },
     200: {
       type: "object",
       properties: {
@@ -117,7 +124,19 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   // Shortend URL Endpoint (if sending through any frontend in body)
   fastify.post<{ Body: Shortenbody }>(
     "/shorten",
-    { schema: shortenSchema },
+    {
+      schema: shortenSchema,
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+          errorResponseBuilder: () => ({
+            success: false,
+            message: "Rate limit exceeded. Please try again later.",
+          }),
+        },
+      },
+    },
     async (request, reply) => {
       const longUrl = request!.body.url;
 
