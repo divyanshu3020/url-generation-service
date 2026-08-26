@@ -1,30 +1,18 @@
-import type { FastifyInstance, FastifyPluginAsync } from "fastify";
+import type {
+  FastifyInstance,
+  FastifyPluginAsync,
+  FastifySchema,
+} from "fastify";
 import { generateShortCode } from "../utils/shortCodeGenerator";
-import { saveUrlMapping } from "../utils/dbWrite";
+import { saveUrlMapping, generateUrlHash } from "../utils/dbWrite";
 import { logger } from "../lib/logger";
-import type { FastifySchema } from "fastify";
+import { scyllaClient } from "../lib/scylladb";
 
-interface ShortenQuery {
-  url: string;
-}
-interface Shortenbody {
+interface ShortenBody {
   url: string;
 }
 
 const shortenSchema: FastifySchema = {
-  // querystring: {
-  //   type: "object",
-  //   required: ["url"],
-  //   properties: {
-  //     url: {
-  //       type: "string",
-  //       format: "uri",
-  //       pattern: "^https?://",
-  //       maxLength: 2048,
-  //     },
-  //   },
-  // },
-
   body: {
     type: "object",
     required: ["url"],
@@ -37,7 +25,6 @@ const shortenSchema: FastifySchema = {
       },
     },
   },
-
   response: {
     429: {
       type: "object",
@@ -79,50 +66,7 @@ const shortenSchema: FastifySchema = {
 };
 
 const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
-  // 1. Shorten URL Endpoint (if sending long url in url itself as query)
-  // fastify.get<{ Querystring: ShortenQuery }>(
-  //   "/shorten",
-  //   { schema: shortenSchema },
-  //   async (request, reply) => {
-  //     const longUrl = request.query.url;
-
-  //     if (!longUrl) {
-  //       return reply
-  //         .status(400)
-  //         .send({ success: false, message: "Missing 'url' parameter" });
-  //     }
-
-  //     const shortcode = generateShortCode();
-
-  //     // Persist mapping to DB & Redis Cache
-  //     try {
-  //       await saveUrlMapping({
-  //         shortCode: shortcode,
-  //         longUrl: longUrl,
-  //       });
-  //     } catch (err: any) {
-  //       logger.error(
-  //         `❌ [Route] Error saving URL mapping: ${err.message || err}`,
-  //       );
-  //       return reply
-  //         .status(500)
-  //         .send({ success: false, message: "Failed to persist short URL" });
-  //     }
-
-  //     return {
-  //       success: true,
-  //       message: "URL shortened successfully",
-  //       data: {
-  //         shortcode,
-  //         longUrl,
-  //         shortUrl: `http://localhost:3000/api/v1/${shortcode}`,
-  //       },
-  //     };
-  //   },
-  // );
-
-  // Shortend URL Endpoint (if sending through any frontend in body)
-  fastify.post<{ Body: Shortenbody }>(
+  fastify.post<{ Body: ShortenBody }>(
     "/shorten",
     {
       schema: shortenSchema,
@@ -138,7 +82,7 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       },
     },
     async (request, reply) => {
-      const longUrl = request!.body.url;
+      const longUrl = request.body.url;
 
       if (!longUrl) {
         return reply
@@ -146,13 +90,46 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           .send({ success: false, message: "Missing 'url' parameter" });
       }
 
+      // 1. Check for existing mapping via secondary index on url_hash
+      try {
+        const urlHash = generateUrlHash(longUrl);
+
+        const query = `
+          SELECT short_code FROM shortener.urls 
+          WHERE url_hash = ? 
+          LIMIT 1;
+        `;
+
+        const result = await scyllaClient.execute(query, [urlHash], {
+          prepare: true,
+        });
+
+        const firstRow = result.first();
+
+        if (firstRow) {
+          const existingCode = firstRow.get("short_code") as string;
+          return {
+            success: true,
+            message: "Existing short URL found",
+            data: {
+              shortcode: existingCode,
+              longUrl,
+              shortUrl: `http://localhost:3002/api/v1/${existingCode}`,
+            },
+          };
+        }
+      } catch (err: any) {
+        logger.error(`❌ [ScyllaDB] Lookup error: ${err.message || err}`);
+      }
+
+      // 2. Generate new shortcode
       const shortcode = generateShortCode();
 
-      // Persist mapping to DB & Redis Cache
+      // 3. Persist to ScyllaDB & cache in Redis
       try {
         await saveUrlMapping({
           shortCode: shortcode,
-          longUrl: longUrl,
+          longUrl,
         });
       } catch (err: any) {
         logger.error(

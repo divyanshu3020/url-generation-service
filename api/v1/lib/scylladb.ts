@@ -36,27 +36,32 @@ export async function initScyllaDB() {
     await scyllaClient.connect();
     logger.info("⚡ [ScyllaDB] Connected successfully.");
 
-    // Ensure Keyspace and Table exist with Native TTL support
+    // 1. Keyspace Setup
     await scyllaClient.execute(`
       CREATE KEYSPACE IF NOT EXISTS shortener 
       WITH replication = {'class': 'NetworkTopologyStrategy', 'datacenter1': 1};
     `);
 
+    // 2. Table with url_hash column
     await scyllaClient.execute(`
       CREATE TABLE IF NOT EXISTS shortener.urls (
         short_code text,
+        url_hash text,
         long_url text,
         created_at timestamp,
         PRIMARY KEY (short_code)
       );
     `);
-    logger.info("⚡ [ScyllaDB] Table 'urls' verified.");
+
+    // 3. Secondary Index for fast duplicate lookup via SHA-256 hash
+    await scyllaClient.execute(`
+      CREATE INDEX IF NOT EXISTS urls_url_hash_idx 
+      ON shortener.urls (url_hash);
+    `);
+
+    logger.info("⚡ [ScyllaDB] Table 'urls' and Index verified.");
   } catch (err: any) {
     logger.error(`❌ [ScyllaDB] Connection error: ${err.message || err}`);
     process.exit(1);
   }
 }
-
-// next task to do
-// now i need to understnd how this cassendra cql works and how to use it to store and retrieve data.
-// n then how this write will happen in redis too and also with how to set config for them
