@@ -90,6 +90,8 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           .send({ success: false, message: "Missing 'url' parameter" });
       }
 
+      const redirectionURL = process.env.REDIRECTION_URL
+
       // 1. Check for existing mapping via secondary index on url_hash
       try {
         const urlHash = generateUrlHash(longUrl);
@@ -114,7 +116,7 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
             data: {
               shortcode: existingCode,
               longUrl,
-              shortUrl: `http://localhost:3002/api/v1/${existingCode}`,
+              shortUrl: `${redirectionURL}${existingCode}`,
             },
           };
         }
