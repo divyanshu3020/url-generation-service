@@ -7,10 +7,10 @@ import { logger } from "./api/v1/lib/logger";
 import fastifyRateLimit from "@fastify/rate-limit"
 
 const app = Fastify();
-const port = 3001;
+const port = Number(process.env.PORT || 3000);
 
 // Allowed Domains
-const allowedOrigins = ["https://example.com", "http://localhost:3000"];
+const allowedOrigins = ["https://example.com", "http://localhost:3000","https://url-frontend.divyanshus068.workers.dev/"];
 
 await app.register(fastifyRateLimit, {
   global: false, // Set to false to configure per-route
