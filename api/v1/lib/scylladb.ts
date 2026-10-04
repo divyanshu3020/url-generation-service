@@ -25,10 +25,6 @@ export const scyllaClient = new cassandra.Client({
     scyllaUser && scyllaPassword
       ? new cassandra.auth.PlainTextAuthProvider(scyllaUser, scyllaPassword)
       : undefined,
-  sslOptions:
-    process.env.SCYLLA_TLS === "true"
-      ? { rejectUnauthorized: true }
-      : undefined,
 });
 
 export async function initScyllaDB() {

@@ -148,7 +148,7 @@ const apiV1Router: FastifyPluginAsync = async (fastify: FastifyInstance) => {
         data: {
           shortcode,
           longUrl,
-          shortUrl: `http://localhost:3002/api/v1/${shortcode}`,
+          shortUrl: `${redirectionURL}${shortcode}`,
         },
       };
     },
