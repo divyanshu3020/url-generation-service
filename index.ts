@@ -4,17 +4,23 @@ import route from "./api/v1/routes/index";
 import { initScyllaDB, scyllaClient } from "./api/v1/lib/scylladb";
 import { redisClient } from "./api/v1/lib/redis";
 import { logger } from "./api/v1/lib/logger";
-import fastifyRateLimit from "@fastify/rate-limit"
+import fastifyRateLimit from "@fastify/rate-limit";
 
 const app = Fastify();
 const port = Number(process.env.PORT || 3000);
-
+const serverUrl = process.env.TUNNEL_URL;
 // Allowed Domains
-const allowedOrigins = ["https://example.com", "http://localhost:3000","https://url-frontend.divyanshus068.workers.dev/"];
+const allowedOrigins = [
+  "https://example.com",
+  "http://localhost:3000",
+  "https://url-frontend.divyanshus068.workers.dev", // Removed trailing slash
+  process.env.TUNNEL_URL?.replace(/\/$/, ""), // Strips trailing slash if any
+].filter(Boolean);
+
 
 await app.register(fastifyRateLimit, {
   global: false, // Set to false to configure per-route
-  max: 100,      // Fallback max requests
+  max: 100, // Fallback max requests
   timeWindow: "1 minute",
   redis: redisClient, // Optional: pass your existing Redis instance
 });
